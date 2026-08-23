@@ -1,0 +1,46 @@
+# This repository practises what the checklist recommends: this file is the same block that
+# safe-setup-simple-apps.md suggests, and scripts/check_gitignore_advice.py verifies BOTH the
+# recommendation and this file against git check-ignore, so they cannot drift apart.
+
+
+# Virtual environments. Several spellings, because `python -m venv` takes whatever name you give it
+# and there is no convention, only habits. These four cover what people actually type.
+.venv/
+venv/
+env/
+ENV/
+
+# Bytecode and caches.
+__pycache__/
+*.py[cod]
+
+# Logs. The directory too, not just the extension, so a rotated `app.log.2024-01-01` is covered.
+*.log
+logs/
+
+# Secrets. BOTH globs, because neither implies the other: `.env*` is a prefix glob and misses
+# `audit.env`, while `*.env` is a suffix glob and misses `.env.local`. Verified with
+# `git check-ignore` rather than by reading, which is what `make check` does on this very block.
+.env*
+*.env
+
+# ...but the template is meant to be committed, and `.env*` above would have swallowed it. A
+# negation has to come after the pattern it re-includes.
+!.env.example
+
+# Key material and credentials.
+secrets/
+credentials*
+*.pem
+*.key
+id_rsa*
+
+# Local databases and editor or OS noise.
+*.sqlite3
+*.db
+.DS_Store
+
+# Beyond the checklist's recommendation, which is deliberately Python-only. These are the account
+# baseline: they will never appear in this repository, and they cost one line each to be sure.
+node_modules/
+*.sqlite

@@ -1,0 +1,36 @@
+# Runs the three checks in the Makefile on every push and pull request.
+#
+# The point of this repository is that the advice in safe-setup-simple-apps.md is verified rather than
+# asserted, and until this file existed nothing verified it unless somebody typed `make check`. A
+# guarantee that depends on remembering is not one.
+#
+# No `pip install` step and no cache, deliberately: every check is python3 plus git, both already on
+# the runner. That is the same property the checklist argues for in a small app, and it means this
+# workflow cannot break because of a dependency it does not have.
+
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to a version rather than "3.x": the file-path section relies on
+      # pathlib.Path.is_relative_to, which is 3.9 or newer, so the runner should not be free to
+      # drift below what the samples document.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: python3 --version && git --version
+
+      - run: make check
