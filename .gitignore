@@ -3,10 +3,12 @@
 # recommendation and this file against git check-ignore, so they cannot drift apart.
 
 
-# Virtual environments. Both spellings, because tooling disagrees about the dot: `python -m venv`
-# takes whatever name you give it and the two common ones are these.
+# Virtual environments. Several spellings, because `python -m venv` takes whatever name you give it
+# and there is no convention, only habits. These four cover what people actually type.
 .venv/
 venv/
+env/
+ENV/
 
 # Bytecode and caches.
 __pycache__/

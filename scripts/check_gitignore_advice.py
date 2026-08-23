@@ -9,8 +9,12 @@ all, because the reader stops thinking about it.
 How it works: the recommended block is extracted from the markdown, written into a throwaway git
 repository, and every path below is put to ``git check-attr``'s sibling ``git check-ignore``. So the
 authority is git itself rather than a reimplementation of its pattern rules, which is the part that is
-easy to get wrong. Measured on the version of this document before it was fixed: the recommended block
-ignored the bare dotfile and the .local variant, and MISSED .envrc, the whole suffix form
+easy to get wrong.
+
+Measured on the version of this document before it was fixed: 13 problems. Twelve were absences and one
+was the opposite, an OVER-ignore that this list's second half exists to catch: ``.env.*`` matches
+``.env.example``, so the advice ignored the one file you are supposed to commit. The absences were
+``venv/`` without the dot, ``.DS_Store``, and MISSED .envrc, the whole suffix form
 (audit.env and production.env), every kind of key material, and local databases.
 
 BOTH lists matter. MUST_IGNORE alone can be satisfied by a .gitignore containing a single ``*``, which
@@ -38,6 +42,11 @@ BLOCK_MARKER = "# .gitignore"
 MUST_IGNORE = [
     ".venv/pyvenv.cfg",
     "venv/pyvenv.cfg",
+    # env/ and ENV/ were missing from this list AND from the recommendation, so the gap was invisible
+    # to the check: a list of things to verify is an artifact that can be incomplete like any other,
+    # and a checker cannot find what nobody thought to ask it about.
+    "env/pyvenv.cfg",
+    "ENV/pyvenv.cfg",
     "__pycache__/module.cpython-312.pyc",
     "module.pyc",
     "module.pyo",

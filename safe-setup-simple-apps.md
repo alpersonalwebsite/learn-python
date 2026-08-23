@@ -49,10 +49,12 @@ chose deliberately.
 ```bash
 # .gitignore
 
-# Virtual environments. Both spellings, because tooling disagrees about the dot: `python -m venv`
-# takes whatever name you give it and the two common ones are these.
+# Virtual environments. Several spellings, because `python -m venv` takes whatever name you give it
+# and there is no convention, only habits. These four cover what people actually type.
 .venv/
 venv/
+env/
+ENV/
 
 # Bytecode and caches.
 __pycache__/
@@ -175,13 +177,23 @@ import sys
 
 LOCK_FILE = "script_running.lock"
 
-handle = open(LOCK_FILE, "w")
+# O_RDWR and NOT `open(LOCK_FILE, "w")`. Mode "w" truncates at open, which happens BEFORE the lock
+# attempt below, so every refused instance would blank the PID the holder had written. Measured: the
+# file held "50922", then was empty after one refused run. Mutual exclusion was never affected, but
+# the PID this snippet takes the trouble to record was being destroyed by the next caller.
+#
+# 0o600 here rather than a chmod afterwards, for the reason section 7 gives.
+handle = os.fdopen(os.open(LOCK_FILE, os.O_CREAT | os.O_RDWR, 0o600), "r+")
 
 try:
     fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError:
     print(f"another instance holds {LOCK_FILE}, exiting", file=sys.stderr)
     sys.exit(1)
+
+# Truncate only after winning the lock, never before asking for it.
+handle.seek(0)
+handle.truncate()
 
 # Keep `handle` referenced for as long as the lock should be held: if it is garbage collected the
 # file closes and the lock goes with it.
@@ -199,9 +211,11 @@ pid 13568 refused: another instance holds the lock
 ```
 
 The property that matters is what happens after a `SIGKILL`. Measured: the lock *file* is still on
-disk afterwards, and the next run acquires the lock anyway, because the lock lives on the open file
-descriptor and the kernel drops it when the process dies. There is no stale lock to clean up and no
-`finally` block needed for correctness. That is the whole argument for `flock` over a PID file.
+disk afterwards, still holding the dead process's PID, and the next run acquires the lock anyway and
+overwrites it, because the lock lives on the open file descriptor and the kernel drops it when the
+process dies. There is no stale lock to clean up and no `finally` block needed for correctness. That
+is the whole argument for `flock` over a PID file: the PID in the file can be stale, and it does not
+matter, because nothing consults it to decide whether the lock is held.
 
 Note the exit code is `1`, not `0`. Refusing to run because another copy is running is not a
 successful run, and a supervisor cannot tell the difference unless you say so.
@@ -343,8 +357,13 @@ chmod -R 700 logs/
 
 For files your own code creates, set the mode AT creation rather than with a `chmod` afterwards. A
 `chmod` leaves a window in which the file exists with the default mode, and on a shared machine that
-window is the whole problem. The lock in section 3 does this already, with the `0o600` argument to
-`os.open`, which is why it is not in the list above.
+window is the whole problem. Both lock variants in section 3 pass `0o600` to `os.open` for this
+reason, which is why the lock file is not in the list above.
+
+An earlier version of this section claimed that and was only half true: the `flock` variant used
+`open(LOCK_FILE, "w")`, which creates mode `0644` under the usual `umask` of `022`, so the one
+presented first was the one that did not do it. Measured both, `0o644` against `0o600`, which is the
+kind of claim worth checking rather than assuming from the neighbouring code.
 
 `open()` has no mode parameter, so when it matters, go through `os.open`:
 
